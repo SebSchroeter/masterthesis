@@ -52,4 +52,67 @@ def coalition_combinatorics_generator(df):
                 coalition_dict[(year, coalition)] = total_seats # add seats as values to dict with (year,coalition) tuple as key
 
     return coalition_dict
+   
 
+def win_coals_and_parties(coalition_dict):
+    ## takes in a dict containing all coalitions from coalition_combinatorics_generator
+    ## checks whether value is greater than half of the grandcoalition
+    ## outputs a dict with similar keys and value {0,1} depending on being winning
+    ## outputs a list with number of parties for every given year (this could and should have been done much earlier, might change later)
+   
+    winning_coal_dict = {}
+    nrofseats = {}
+    parties_per_year = {}
+    n_list = []
+
+    # number of parties for each year
+    for (year, coalition), seats in coalition_dict.items():
+        parties = coalition.split('+') #split coalitions again into parties
+        if year in parties_per_year:
+            parties_per_year[year].update(parties) #add parties to list
+        else:
+            parties_per_year[year] = set(parties) #gets rid of duplicates
+
+    # total number of seats from grandcoalition
+    for (year, coalition), seats in coalition_dict.items():
+        if year in nrofseats:
+            if len(coalition.split('+')) == len(parties_per_year[year]): #test whether current coalition is grandcoalition
+                nrofseats[year] = seats
+        else:
+            nrofseats[year] = seats #adds the year to the list with a starting coalition
+
+    # Determine if coalition is winning
+    for (year, coalition), seats in coalition_dict.items():
+        winning_coal_dict[(year, coalition)] = 1 if seats > nrofseats[year] / 2 else 0 #assumes that coalition needs a strict majority to be winning
+
+    # list parties for each year
+    for year, parties in parties_per_year.items():
+        n_list.append((year, len(parties)))
+
+    return winning_coal_dict, n_list
+
+def min_winning_coals(winning_coal_dict):
+   ## takes in a dict from win_coals_and_parties
+   ## for each element tests whether coal would be losing in all combinations losing one member 
+   ## returns all those MWC  
+    min_win_coal_dict = {}
+
+    for (year, coalition), is_winning in winning_coal_dict.items(): #"is_winning" either 0 or 1, interpret as boolean
+        if is_winning:
+            parties = coalition.split('+') #gets indiv. parties of this coal
+            is_minimal = True #initialize boolean state
+
+            # Get all coals with one less member
+            for sub_coalition in itertools.combinations(parties, len(parties) - 1): #gets all combinations from indiv. parties with -1 total members
+                sub_coalition_str = '+'.join(sub_coalition) #create sub-coals
+
+                # Check if subcoals are winning
+                if winning_coal_dict.get((year, sub_coalition_str), 0):
+                    is_minimal = False
+                    break
+
+            # If no sub-coalition is winning, then it's MWC
+            if is_minimal:
+                min_win_coal_dict[(year, coalition)] = winning_coal_dict[(year, coalition)]
+
+    return min_win_coal_dict
