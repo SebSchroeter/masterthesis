@@ -132,3 +132,17 @@ def max_loosing_coals(winning_dict, parties_in_year):
                 maximal_losing[(year, coalition)] = 0
 
     return maximal_losing
+
+def tying_coals(coalition_dict, totalseats_in_year):
+    #takes in a coal dict and a dict with Q per year
+    #in even parliaments unique tying coals can emerge
+    #those will be stored in a dict
+    unique_tying = {}
+
+    for (year, coalition), seats in coalition_dict.items():
+        if totalseats_in_year[year] % 2 == 0: #even-check
+            half_seats = totalseats_in_year[year] // 2 # // to ensure integer values 
+            if seats == half_seats:
+                unique_tying[(year, coalition)] = 0
+
+    return unique_tying
