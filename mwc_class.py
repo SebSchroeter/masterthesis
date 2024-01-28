@@ -98,9 +98,21 @@ class getMVCs:
         self.identify_winning_coalitions()
         self.find_minimal_winning_coalitions()
         self.find_maximal_losing_coalitions()
-        self.saving_function()
-
-        return "Pipeline completed successfully."
+        
+        if self.saveresults:
+            self.saving_function()
+            return "Pipeline completed successfully."
+        else:
+            return {
+                "transformed_dataframe": self.transformed_dataframe,
+                "parties_in_year": self.parties_in_year,
+                "totalseats_in_year": self.totalseats_in_year,
+                "coalition_dict": self.coalition_dict,
+                "winning_coal_dict": self.winning_coal_dict,
+                "minimal_winning_coalitions": self.minimal_winning_coalitions,
+                "maximal_losing_coalitions": self.maximal_losing_coalitions,
+                "unique_tying_coalitions": self.unique_tying_coalitions
+            }
 
 
 

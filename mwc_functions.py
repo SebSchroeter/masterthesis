@@ -57,6 +57,9 @@ def coalition_combinatorics_generator(df,parties_in_year):
         parties = parties_in_year[year]
         seats = dict(zip(df[df['Year'] == year]['Party'], df[df['Year'] == year]['# of Seats']))  # boolean mask of df(year)=year to get new df of only the relevant year. Then zips parties and seats togeterh
 
+        #add empty coalition 
+        coalition_dict[(year, '')]=0
+        
         # Generate all unique coalitions
         for r in range(1, len(parties) + 1):
             for combi in itertools.combinations(parties, r): #itertools.combinations creates r-length tuples, in sorted order, no repeated elements
