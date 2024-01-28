@@ -67,7 +67,7 @@ def coalition_combinatorics_generator(df,parties_in_year):
     return coalition_dict
    
 
-def win_coals_and_parties(coalition_dict, totalseats_in_year):
+def win_coals(coalition_dict, totalseats_in_year):
     ## takes in a dict containing all coalitions from coalition_combinatorics_generator
     ## checks whether value is greater than half of the grandcoalition
     ## outputs a dict with similar keys and value {0,1} depending on being winning
