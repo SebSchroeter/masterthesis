@@ -20,6 +20,7 @@ class getMVCs:
         self.minimal_winning_coalitions = None
         self.maximal_losing_coalitions = None
         self.unique_tying_coalitions = None
+        self.n_in_year = None
 
     def read_and_transform_data(self):
         self.dataframe = read_csv_to_dataframe(self.csv_file_path, self.encoding)
@@ -60,6 +61,7 @@ class getMVCs:
                     self.transformed_dataframe.to_excel(writer, sheet_name='Transformed Data', index=False)
                 # save the dicts
                 self._save_dict_to_excel_sheet(self.parties_in_year, 'Parties per Year', writer)
+                self._save_dict_to_excel_sheet(self.n_in_year, 'n per Year', writer)
                 self._save_dict_to_excel_sheet(self.totalseats_in_year, 'Total Seats per Year', writer)
                 self._save_dict_to_excel_sheet(self.coalition_dict, 'Coalitions', writer)
                 self._save_dict_to_excel_sheet(self.winning_coal_dict, 'Winning Coalitions', writer)
@@ -98,6 +100,7 @@ class getMVCs:
         self.identify_winning_coalitions()
         self.find_minimal_winning_coalitions()
         self.find_maximal_losing_coalitions()
+        self.find_tying_coalitions()
         
         if self.saveresults:
             self.saving_function()
@@ -106,6 +109,7 @@ class getMVCs:
             return {
                 "transformed_dataframe": self.transformed_dataframe,
                 "parties_in_year": self.parties_in_year,
+                "n_in_year": self.n_in_year,
                 "totalseats_in_year": self.totalseats_in_year,
                 "coalition_dict": self.coalition_dict,
                 "winning_coal_dict": self.winning_coal_dict,
