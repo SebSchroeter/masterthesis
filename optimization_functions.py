@@ -1,4 +1,10 @@
 import pandas as pd
+import numpy as np
+import itertools
+from scipy import optimize
+from scipy.optimize import LinearConstraint
+from scipy.optimize import milp
+
 
 def create_all_year_dfs(winning_coal_dict, parties_in_year):
     ##create dataframes fro every year from coalition dict and indicate whether the coal was winning 
@@ -88,3 +94,102 @@ def verify_conditions(year, winning_coal_dict, constraints_df, n_in_year):
 
     return "Correct"
 
+def get_all_constrains(all_year_dfs):
+    #simple loop to get all constraints into one dict
+    #takes in all_year_df, returns dict with (year,yearly_constraints_df)
+    all_constraints_dict={}
+    for year,yearly_dfs in all_year_dfs.items(): 
+        yearly_constraints= generate_constraints_df(yearly_dfs)
+        all_constraints_dict[year]= yearly_constraints
+    return all_constraints_dict
+    
+    
+def get_lin_cons(constraints_df):
+    # creates constraints usable for milp
+    # gets matrix A from constraints_df
+    # first n constraints are lhs>=0, 
+    # remaining constraints are lhs>0, since lhs will always be integer-valued this is equivalent to lhs>=1 
+    # returns lin_constraint element   
+    A = constraints_df.to_numpy()
+    lbnd = np.zeros(len(constraints_df)) # non-negativity constraints 
+    lbnd[constraints_df.shape[1]:] = 1 #set all remaining lower bounds to 1
+    upbnd = np.full(len(constraints_df), np.inf) #no upper bound 
+
+    lin_cons = LinearConstraint(A, lbnd, upbnd)
+
+    return lin_cons
+def get_all_lin_cons(all_constraints_dict): 
+    ##simple loop again to transform all constraints into linear constraints
+    all_lin_cons_dict={}
+    for year,yearly_constraints in all_constraints_dict.items():
+        constraints = yearly_constraints
+        lin_cons = get_lin_cons(constraints)
+        all_lin_cons_dict[year]=lin_cons
+    return all_lin_cons_dict
+     
+def get_min_vote_weights(year,n_in_year,constraints): 
+    ## passes constraints to optimizer
+    ## sets coefficients to 1 (since we need an unweighted sum to be minimized), sets all weights to be full-integers
+    ## returns optimization object 
+    mvw = optimize.milp(np.full(n_in_year[year],1), integrality=np.full(n_in_year[year],1), constraints=constraints)
+    return mvw
+
+def get_all_min_vote_weights(all_lin_cons_dict,n_in_year): 
+    #simple loop over all opimization problems
+    all_min_vote_weights = {}
+    for year,lin_cons in all_lin_cons_dict.items(): 
+        yearly_lincons = lin_cons
+        yearly_mvw_results = get_min_vote_weights(year,n_in_year,yearly_lincons)
+        yearly_mvws = yearly_mvw_results.x
+        all_min_vote_weights[year]=yearly_mvws
+    return all_min_vote_weights
+
+def mvw_to_parties(year, optimizer_results, parties_in_year):
+    ## takes as input milp object and party dict as well as year. 
+    ## zips optimal weights to repsective parties 
+    weights = optimizer_results.x
+    optimized_seats = {party: result for party, result in zip(parties_in_year[year], weights)} #object.x stores the values 
+
+    return optimized_seats
+
+def get_all_optimized_seats(all_min_vote_weights,parties_in_year): 
+    # does what mvw_to_parties does but now for the dict from get_all_min_vote_weights
+    all_optimized_Seats = {}
+    for year,optimized_Seats in all_min_vote_weights.items(): 
+        yearly_optimized_Seats = optimized_Seats
+        yearly_matching =  {party: result for party, result in zip(parties_in_year[year], yearly_optimized_Seats)} 
+        all_optimized_Seats[year]=yearly_matching
+    return all_optimized_Seats
+
+def help_test_mvws(optimized_seats):
+    '''helper function for test_mvws'''
+    ## creates dict just like winning_coal_dict but from mvw´s, used later to ensure equivalency of games 
+    ## takes in dict from mvw_to_parties and uses same logic as coalition_combinatorics_generator and win_coals but for dicts
+    
+    mw_winning_coal_dict = {}
+    total_seats = sum(optimized_seats.values()) #new Q
+    parties = list(optimized_seats.keys())
+
+    # Generate all unique coalitions
+    mw_winning_coal_dict[''] = 0
+    for r in range(1, len(parties) + 1):
+        for combo in itertools.combinations(parties, r):
+            coalition = '+'.join(combo) #name of coalition 
+            coalition_seats = sum(optimized_seats[party] for party in combo) #seats is sum of their weights 
+            mw_winning_coal_dict[coalition] = 1 if coalition_seats > (total_seats / 2) else 0 #indicate winning or losing (again, with strict inequality)
+
+    return mw_winning_coal_dict
+
+
+def test_mvws(year, winning_coal_dict, mw_winning_coal_dict):
+    ## takes in mw_winning_coal_dict and compares it to winning_coal_dict[year] 
+    ## if the set of coalitions is the same and if all coalitions have the same value, the game is identical and thus the mvs represent the same game as the original parliament 
+    ## returns boolean  
+    winning_coals_by_year = {coalition: value for (yr, coalition), value in winning_coal_dict.items() if yr == year} # bit convoluted since I need 'year' twice, basically just separates the relevant year from the winning_coal_dict
+
+    # Compare 
+    for coalition, value in winning_coals_by_year.items():
+        if coalition not in mw_winning_coal_dict or mw_winning_coal_dict[coalition] != value:
+            return False
+
+    return True

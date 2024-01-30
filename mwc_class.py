@@ -1,16 +1,19 @@
 import os
 import pandas as pd
 import itertools
-
+from scipy import optimize
+from scipy.optimize import LinearConstraint
+from scipy.optimize import milp
 from mwc_functions import * 
+from optimization_functions import *
 
-class getMVCs:
+class getMVWs:
     def __init__(self, csv_file_path, encoding='utf-16', save_results=False, results_folder='results'):
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
         self.encoding = encoding
-        # Ini
+        # Ini prelims
         self.dataframe = None
         self.transformed_dataframe = None
         self.parties_in_year = None
@@ -21,7 +24,13 @@ class getMVCs:
         self.maximal_losing_coalitions = None
         self.unique_tying_coalitions = None
         self.n_in_year = None
-
+        #Ini pipeline
+        self.all_dfs = None
+        self.all_constraints = None
+        self.all_lin_cons = None
+        self.all_min_weights = None
+        self.optimal_seats = None
+#prelim wrapper
     def read_and_transform_data(self):
         self.dataframe = read_csv_to_dataframe(self.csv_file_path, self.encoding)
         self.transformed_dataframe = transform_and_sort_dataframe(self.dataframe)
@@ -43,7 +52,20 @@ class getMVCs:
     def find_tying_coalitions(self):
         self.unique_tying_coalitions = tying_coals(self.coalition_dict, self.totalseats_in_year)
    
-    def saving_function(self):
+#pipeline wrapper   
+    def get_all_dfs(self): 
+       self.all_dfs = create_all_year_dfs(self.winning_coal_dict,self.parties_in_year)
+    def Find_all_contraints(self): 
+       self.all_constraints = get_all_constrains(self.all_dfs)       
+    def Find_all_lin_cons(self): 
+       self.all_lin_cons = get_all_lin_cons(self.all_constraints)
+    def Find_all_min_weights(self): 
+       self.all_min_weights = get_all_min_vote_weights(self.all_lin_cons,self.n_in_year) 
+    def All_the_optimal_seats(self): 
+        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year)
+       
+#saving functions    
+    def save_prelims(self):
         """requires XlsxWriter Module"""
         """install by: pip install xlsxwriter """
         if self.saveresults:
@@ -52,7 +74,7 @@ class getMVCs:
                 os.makedirs(self.results_folder)
 
             # Prepare the path for the Excel file
-            output_file = os.path.join(self.results_folder, 'results.xlsx')
+            output_file = os.path.join(self.results_folder, 'Preliminaries.xlsx')
 
             # somehow this works.... creates the excel file
             with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
@@ -92,8 +114,26 @@ class getMVCs:
 
             df.to_excel(writer, sheet_name=sheet_name, index=False)        
 
+  
+    def save_pipeline(self):
+        """requires XlsxWriter Module"""
+        """install by: pip install xlsxwriter """
+        if self.saveresults:
+            # Creates folder if necessary
+            if not os.path.exists(self.results_folder):
+                os.makedirs(self.results_folder)
 
-    def run_pipeline(self):
+            # Prepare the path for the Excel file
+            output_file = os.path.join(self.results_folder, 'minimal_seats.xlsx')
+
+            # somehow this works.... creates the excel file
+            with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
+                # save the dict
+                self._save_dict_to_excel_sheet(self.optimal_seats, 'Minimal Seats Per Party', writer)
+
+    
+
+    def preliminaries(self):
         self.read_and_transform_data()
         self.get_variables()
         self.generate_coalition_combinatorics()
@@ -103,8 +143,8 @@ class getMVCs:
         self.find_tying_coalitions()
         
         if self.saveresults:
-            self.saving_function()
-            return "Pipeline completed successfully."
+            self.save_prelims()
+            return "Prelims completed successfully."
         else:
             return {
                 "transformed_dataframe": self.transformed_dataframe,
@@ -117,7 +157,20 @@ class getMVCs:
                 "maximal_losing_coalitions": self.maximal_losing_coalitions,
                 "unique_tying_coalitions": self.unique_tying_coalitions
             }
-
-
-
-
+    def minimal_voting_weights_pipeline(self):
+        self.get_all_dfs()
+        self.Find_all_contraints()
+        self.Find_all_lin_cons()
+        self.Find_all_min_weights()
+        self.All_the_optimal_seats()
+        if self.saveresults:
+            self.save_pipeline()
+            return "Pipeline completed successfully."
+        else:
+            return {"Dataframes":self.all_dfs,
+                "Constraints":self.all_constraints,
+                "Linear Constraints": self.all_lin_cons,
+                "Minimal Integer Weights" : self.all_min_weights,
+                "Optimal Seats": self.optimal_seats
+            }
+        
