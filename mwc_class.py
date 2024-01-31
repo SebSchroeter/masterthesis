@@ -8,7 +8,8 @@ from mwc_functions import *
 from optimization_functions import *
 
 class getMVWs:
-    def __init__(self, csv_file_path, encoding='utf-16', save_results=False, results_folder='results'):
+    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False, results_folder='results'):
+        self.name = name
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
@@ -30,6 +31,7 @@ class getMVWs:
         self.all_lin_cons = None
         self.all_min_weights = None
         self.optimal_seats = None
+        
 #prelim wrapper
     def read_and_transform_data(self):
         self.dataframe = read_csv_to_dataframe(self.csv_file_path, self.encoding)
@@ -49,8 +51,8 @@ class getMVWs:
 
     def find_maximal_losing_coalitions(self):
         self.maximal_losing_coalitions = max_loosing_coals(self.winning_coal_dict, self.parties_in_year)
-    def find_tying_coalitions(self):
-        self.unique_tying_coalitions = tying_coals(self.coalition_dict, self.totalseats_in_year)
+    def find_unique_tying_coalitions(self):
+        self.unique_tying_coalitions = unique_tying_coals(self.coalition_dict, self.totalseats_in_year,self.parties_in_year)
    
 #pipeline wrapper   
     def get_all_dfs(self): 
@@ -62,7 +64,7 @@ class getMVWs:
     def Find_all_min_weights(self): 
        self.all_min_weights = get_all_min_vote_weights(self.all_lin_cons,self.n_in_year) 
     def All_the_optimal_seats(self): 
-        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year)
+        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year, self.winning_coal_dict)
        
 #saving functions    
     def save_prelims(self):
@@ -74,7 +76,7 @@ class getMVWs:
                 os.makedirs(self.results_folder)
 
             # Prepare the path for the Excel file
-            output_file = os.path.join(self.results_folder, 'Preliminaries.xlsx')
+            output_file = os.path.join(self.results_folder, f"Preliminaries-{self.name}.xlsx")
 
             # somehow this works.... creates the excel file
             with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
@@ -89,8 +91,9 @@ class getMVWs:
                 self._save_dict_to_excel_sheet(self.winning_coal_dict, 'Winning Coalitions', writer)
                 self._save_dict_to_excel_sheet(self.minimal_winning_coalitions, 'Minimal Winning Coalitions', writer)
                 self._save_dict_to_excel_sheet(self.maximal_losing_coalitions, 'Maximal Losing Coalitions', writer)
-                self._save_dict_to_excel_sheet(self.unique_tying_coalitions, 'Unique Tying Coalitions', writer)
-
+                if self.unique_tying_coalitions: # boolean python magic - if the dict has any entry it "is true" --> check if dict is empty 
+                    self._save_dict_to_excel_sheet(self.unique_tying_coalitions, 'Unique Tying Coalitions', writer)
+                else: pass 
     def _save_dict_to_excel_sheet(self, data, sheet_name, writer):
         """Supporting function for dict to xls."""
         #translates dict to df then to xls
@@ -124,7 +127,7 @@ class getMVWs:
                 os.makedirs(self.results_folder)
 
             # Prepare the path for the Excel file
-            output_file = os.path.join(self.results_folder, 'minimal_seats.xlsx')
+            output_file = os.path.join(self.results_folder, f'minimal_seats-{self.name}.xlsx')
 
             # somehow this works.... creates the excel file
             with pd.ExcelWriter(output_file, engine='xlsxwriter') as writer:
@@ -140,7 +143,7 @@ class getMVWs:
         self.identify_winning_coalitions()
         self.find_minimal_winning_coalitions()
         self.find_maximal_losing_coalitions()
-        self.find_tying_coalitions()
+        self.find_unique_tying_coalitions()
         
         if self.saveresults:
             self.save_prelims()

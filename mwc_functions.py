@@ -136,16 +136,21 @@ def max_loosing_coals(winning_dict, parties_in_year):
 
     return maximal_losing
 
-def tying_coals(coalition_dict, totalseats_in_year):
-    #takes in a coal dict and a dict with Q per year
-    #in even parliaments unique tying coals can emerge
-    #those will be stored in a dict
+def unique_tying_coals(coalition_dict, totalseats_in_year, parties_in_year):
+    #takes in coal,totalseats and parties dict
+    #in even parliaments unique tying coals can emerge, which later should be attributed the same weight 
+    #those will be stored in a dict as tuples 
     unique_tying = {}
 
     for (year, coalition), seats in coalition_dict.items():
         if totalseats_in_year[year] % 2 == 0: #even-check
             half_seats = totalseats_in_year[year] // 2 # // to ensure integer values 
             if seats == half_seats:
-                unique_tying[(year, coalition)] = 0
+                coal_parties = set(coalition.split('+')) # get all parties participating the coalition
+                complementary_coal = '+'.join(sorted(set(parties_in_year[year]) - coal_parties)) #ahh set logic for the win 
+                coal_tuple = (year,coalition)
+                complment_tuple = (year,complementary_coal)               
+                if not any(coal in unique_tying for coal in [coal_tuple,complment_tuple]): #any checks whether either the coal_tuple or the complement tuple are already in the unique tying dict. (testing for one should also work if one were to check for both sides of the key)
+                    unique_tying[(year, (coalition, complementary_coal))] = 0 
 
     return unique_tying
