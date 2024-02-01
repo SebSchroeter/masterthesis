@@ -68,6 +68,7 @@ def generate_constraints_df(df):
     return constraints_df
 
 def verify_conditions(year, winning_coal_dict, constraints_df, n_in_year):
+    '''not to be used when using min_winning_coals to create constraints'''
     ## verifys the above conditions to test if: 
     # a) all coals have been found (2^n)
     # b) all constraints have been found (|W|*(2^n-|W|)+n) 
@@ -152,19 +153,21 @@ def mvw_to_parties(year, optimizer_results, parties_in_year):
 
     return optimized_seats
 
-def get_all_optimized_seats(all_min_vote_weights,parties_in_year,winning_coal_dict): 
+def get_all_optimized_seats(all_min_vote_weights,parties_in_year,winning_coal_dict,verify): 
     # does what mvw_to_parties does but now for the dict from get_all_min_vote_weights
+    # takes in boolean verify to check if mvw actually represent the full parliament--> slow for big parliaments 
     all_optimized_Seats = {}
     for year,optimized_Seats in all_min_vote_weights.items(): 
         yearly_optimized_Seats = optimized_Seats
         yearly_matching =  {party: result for party, result in zip(parties_in_year[year], yearly_optimized_Seats)} 
         all_optimized_Seats[year]=yearly_matching
     ##submodul to verify whether seats are correct: 
-    for year, optimized_Seats in all_optimized_Seats.items(): 
-        yearly_optimized_Seats= optimized_Seats
-        yearly_mw_winning_dict = help_test_mvws(yearly_optimized_Seats)
-        test_boolean = test_mvws(year,winning_coal_dict,yearly_mw_winning_dict)
-        if test_boolean == False: return f"Error: test_boolean is {test_boolean} for year {year}"
+    if verify:
+        for year, optimized_Seats in all_optimized_Seats.items(): 
+            yearly_optimized_Seats= optimized_Seats
+            yearly_mw_winning_dict = help_test_mvws(yearly_optimized_Seats)
+            test_boolean = test_mvws(year,winning_coal_dict,yearly_mw_winning_dict)
+            if test_boolean == False: return f"Error: test_boolean is {test_boolean} for year {year}"
     return all_optimized_Seats
 
 def help_test_mvws(optimized_seats):

@@ -8,12 +8,13 @@ from mwc_functions import *
 from optimization_functions import *
 
 class getMVWs:
-    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False, results_folder='results'):
+    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False,verify_mwcs=False, results_folder='results'):
         self.name = name
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
         self.encoding = encoding
+        self.verify = verify_mwcs
         # Ini prelims
         self.dataframe = None
         self.transformed_dataframe = None
@@ -26,6 +27,7 @@ class getMVWs:
         self.unique_tying_coalitions = None
         self.n_in_year = None
         #Ini pipeline
+        self.all_relevant_coals = None
         self.all_dfs = None
         self.all_constraints = None
         self.all_lin_cons = None
@@ -56,7 +58,8 @@ class getMVWs:
    
 #pipeline wrapper   
     def get_all_dfs(self): 
-       self.all_dfs = create_all_year_dfs(self.winning_coal_dict,self.parties_in_year)
+       self.all_relevant_coals = combine_dicts(self.minimal_winning_coalitions,self.maximal_losing_coalitions)
+       self.all_dfs = create_all_year_dfs(self.all_relevant_coals,self.parties_in_year)
     def Find_all_contraints(self): 
        self.all_constraints = get_all_constrains(self.all_dfs)       
     def Find_all_lin_cons(self): 
@@ -64,7 +67,7 @@ class getMVWs:
     def Find_all_min_weights(self): 
        self.all_min_weights = get_all_min_vote_weights(self.all_lin_cons,self.n_in_year) 
     def All_the_optimal_seats(self): 
-        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year, self.winning_coal_dict)
+        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year, self.all_relevant_coals,self.verify)
        
 #saving functions    
     def save_prelims(self):
