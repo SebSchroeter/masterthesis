@@ -22,12 +22,11 @@ def transform_and_sort_dataframe(df):
     ## takes in a dataframe from read_csv_to_dataframe
     ## drops empty rows 
     ## strips partys with 0 seats, strips days and months
-    ## renames party names, sorts by year-party
+    ## sorts by year-party
     df.dropna(axis=0,how='any',inplace=True)
     df = df[df['# of Seats'] != 0].copy()
     df['Year'] = df['Date'].str[-2:]    # get the year
     df['Year'] = df['Year'].apply(lambda x: '19' + x if int(x) > 75 else '20' + x) # Adding '19' or '20' to make it full years
-    df['Party'] = df['Party'].str[:3]
     df = df[['Year', 'Party', '# of Seats']].copy()
     df.sort_values(by=['Year', 'Party'], inplace=True)
 

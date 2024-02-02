@@ -1,4 +1,5 @@
 import os
+import time
 import pandas as pd
 import itertools
 from scipy import optimize
@@ -8,13 +9,14 @@ from mwc_functions import *
 from optimization_functions import *
 
 class getMVWs:
-    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False,verify_mwcs=False, results_folder='results'):
+    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False,verify_mwcs=False,find_errors = False ,results_folder='results'):
         self.name = name
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
         self.encoding = encoding
         self.verify = verify_mwcs
+        self.find_errors = find_errors
         # Ini prelims
         self.dataframe = None
         self.transformed_dataframe = None
@@ -26,6 +28,7 @@ class getMVWs:
         self.maximal_losing_coalitions = None
         self.unique_tying_coalitions = None
         self.n_in_year = None
+        self.time = None
         #Ini pipeline
         self.all_relevant_coals = None
         self.all_dfs = None
@@ -33,6 +36,8 @@ class getMVWs:
         self.all_lin_cons = None
         self.all_min_weights = None
         self.optimal_seats = None
+        self.bools = None
+        self.errors = None
         
 #prelim wrapper
     def read_and_transform_data(self):
@@ -55,20 +60,22 @@ class getMVWs:
         self.maximal_losing_coalitions = max_loosing_coals(self.winning_coal_dict, self.parties_in_year)
     def find_unique_tying_coalitions(self):
         self.unique_tying_coalitions = unique_tying_coals(self.coalition_dict, self.totalseats_in_year,self.parties_in_year)
-   
+    
 #pipeline wrapper   
     def get_all_dfs(self): 
        self.all_relevant_coals = combine_dicts(self.minimal_winning_coalitions,self.maximal_losing_coalitions)
        self.all_dfs = create_all_year_dfs(self.all_relevant_coals,self.parties_in_year)
     def Find_all_contraints(self): 
-       self.all_constraints = get_all_constrains(self.all_dfs)       
+       self.all_constraints = get_all_constrains(self.all_dfs,self.find_errors)       
     def Find_all_lin_cons(self): 
        self.all_lin_cons = get_all_lin_cons(self.all_constraints)
     def Find_all_min_weights(self): 
        self.all_min_weights = get_all_min_vote_weights(self.all_lin_cons,self.n_in_year) 
     def All_the_optimal_seats(self): 
-        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year, self.all_relevant_coals,self.verify)
-       
+        self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year)
+    def verify_found_miw(self): 
+        self.bools,self.errors = verify_coals(self.optimal_seats,self.winning_coal_dict)
+            
 #saving functions    
     def save_prelims(self):
         """requires XlsxWriter Module"""
@@ -140,6 +147,7 @@ class getMVWs:
     
 
     def preliminaries(self):
+ 
         self.read_and_transform_data()
         self.get_variables()
         self.generate_coalition_combinatorics()
@@ -147,7 +155,7 @@ class getMVWs:
         self.find_minimal_winning_coalitions()
         self.find_maximal_losing_coalitions()
         self.find_unique_tying_coalitions()
-        
+        self.time = time.time()
         if self.saveresults:
             self.save_prelims()
             return "Prelims completed successfully."
@@ -169,6 +177,11 @@ class getMVWs:
         self.Find_all_lin_cons()
         self.Find_all_min_weights()
         self.All_the_optimal_seats()
+        if self.verify: 
+            self.verify_found_miw()
+            print(self.bools)
+            print(self.errors)    
+        self.time = time.time()
         if self.saveresults:
             self.save_pipeline()
             return "Pipeline completed successfully."
