@@ -179,8 +179,8 @@ class getMVWs:
         self.All_the_optimal_seats()
         if self.verify: 
             self.verify_found_miw()
-            print(self.bools)
-            print(self.errors)    
+            #print(self.bools)
+            #print(self.errors)    
         self.time = time.time()
         if self.saveresults:
             self.save_pipeline()

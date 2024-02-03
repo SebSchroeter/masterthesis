@@ -21,10 +21,13 @@ def read_csv_to_dataframe(filename, encoding='utf-16'):
 def transform_and_sort_dataframe(df):
     ## takes in a dataframe from read_csv_to_dataframe
     ## drops empty rows 
+    ## substitutes "+" signs in party name for "plus" since many functions use '+'.join(combi) syntax and thus join parties at false places 
     ## strips partys with 0 seats, strips days and months
     ## sorts by year-party
     df.dropna(axis=0,how='any',inplace=True)
     df = df[df['# of Seats'] != 0].copy()
+    #df['Party'] = df['Party'].str[:30]
+    df['Party'] = df['Party'].str.replace('+', 'plus', regex=False)
     df['Year'] = df['Date'].str[-2:]    # get the year
     df['Year'] = df['Year'].apply(lambda x: '19' + x if int(x) > 75 else '20' + x) # Adding '19' or '20' to make it full years
     df = df[['Year', 'Party', '# of Seats']].copy()
