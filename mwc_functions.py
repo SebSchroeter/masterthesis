@@ -2,13 +2,13 @@ import os
 import pandas as pd
 import itertools
 
-def read_csv_to_dataframe(filename, encoding='utf-16'):
+def read_csv_to_dataframe(filename, encoding='utf-16',delimiter='\t'):
     ## takes in the filename as 'xy.csv' and allows for an encoding parameter (uft-16 is apparently used by the Political Data Yearbook)
     ## csv files are stroed in folder 'data'
 
     file_path = os.path.join('data', filename)
     try:
-        dataframe = pd.read_csv(file_path, delimiter='\t', encoding=encoding)
+        dataframe = pd.read_csv(file_path, delimiter=delimiter, encoding=encoding)
         return dataframe
     except UnicodeDecodeError:
         print(f"UnicodeDecodeError: The file might not be in {encoding} encoding.")
@@ -27,6 +27,7 @@ def transform_and_sort_dataframe(df):
     df.dropna(axis=0,how='any',inplace=True)
     df = df[df['# of Seats'] != 0].copy()
     #df['Party'] = df['Party'].str[:30]
+    df['Date']=df['Date'].apply(str) # force str formatting
     df['Party'] = df['Party'].str.replace('+', 'plus', regex=False)
     df['Year'] = df['Date'].str[-2:]    # get the year
     df['Year'] = df['Year'].apply(lambda x: '19' + x if int(x) > 75 else '20' + x) # Adding '19' or '20' to make it full years

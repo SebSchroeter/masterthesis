@@ -9,12 +9,13 @@ from mwc_functions import *
 from optimization_functions import *
 
 class getMVWs:
-    def __init__(self, csv_file_path,name='country', encoding='utf-16', save_results=False,verify_mwcs=False,find_errors = False ,results_folder='results'):
+    def __init__(self, csv_file_path,name='country', encoding='utf-16', delimiter='\t',save_results=False,verify_mwcs=False,find_errors = False ,results_folder='results'):
         self.name = name
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
         self.encoding = encoding
+        self.delimiter = delimiter
         self.verify = verify_mwcs
         self.find_errors = find_errors
         # Ini prelims
@@ -41,7 +42,7 @@ class getMVWs:
         
 #prelim wrapper
     def read_and_transform_data(self):
-        self.dataframe = read_csv_to_dataframe(self.csv_file_path, self.encoding)
+        self.dataframe = read_csv_to_dataframe(self.csv_file_path, self.encoding,self.delimiter)
         self.transformed_dataframe = transform_and_sort_dataframe(self.dataframe)
 
     def get_variables(self):
