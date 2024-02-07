@@ -9,11 +9,12 @@ from mwc_functions import *
 from optimization_functions import *
 
 class getMVWs:
-    def __init__(self, csv_file_path,name='country', encoding='utf-16', delimiter='\t',save_results=False,verify_mwcs=False,find_errors = False ,results_folder='results'):
+    def __init__(self, csv_file_path,name='country', encoding='utf-16', delimiter='\t',save_results=False,find_all_weights=True,verify_mwcs=False,find_errors = False ,results_folder='results'):
         self.name = name
         self.csv_file_path = csv_file_path
         self.saveresults = save_results
         self.results_folder = results_folder
+        self.find_all_weights = find_all_weights
         self.encoding = encoding
         self.delimiter = delimiter
         self.verify = verify_mwcs
@@ -37,6 +38,7 @@ class getMVWs:
         self.all_lin_cons = None
         self.all_min_weights = None
         self.optimal_seats = None
+        self.alternative_weights=None
         self.bools = None
         self.errors = None
         
@@ -59,6 +61,7 @@ class getMVWs:
 
     def find_maximal_losing_coalitions(self):
         self.maximal_losing_coalitions = max_loosing_coals(self.winning_coal_dict, self.parties_in_year)
+
     def find_unique_tying_coalitions(self):
         self.unique_tying_coalitions = unique_tying_coals(self.coalition_dict, self.totalseats_in_year,self.parties_in_year)
     
@@ -76,7 +79,10 @@ class getMVWs:
         self.optimal_seats = get_all_optimized_seats(self.all_min_weights,self.parties_in_year)
     def verify_found_miw(self): 
         self.bools,self.errors = verify_coals(self.optimal_seats,self.winning_coal_dict)
-            
+    def all_alt_weights(self): 
+        self.alternative_weights =all_year_all_possible_weights(self.all_min_weights,self.n_in_year,self.all_constraints,self.find_errors)
+    def alt_weigths_withnames(self): 
+        self.optimal_seats = mvw_to_parties2(self.alternative_weights,self.parties_in_year)
 #saving functions    
     def save_prelims(self):
         """requires XlsxWriter Module"""
@@ -177,12 +183,16 @@ class getMVWs:
         self.Find_all_contraints()
         self.Find_all_lin_cons()
         self.Find_all_min_weights()
-        self.All_the_optimal_seats()
-        if self.verify: 
-            self.verify_found_miw()
-            #print(self.bools)
-            #print(self.errors)    
-        self.time = time.time()
+        if not self.find_all_weights:
+            self.All_the_optimal_seats()
+            if self.verify: 
+                self.verify_found_miw()
+                #print(self.bools)
+                #print(self.errors)    
+        else: 
+            self.all_alt_weights()
+            self.alt_weigths_withnames()
+        #self.time = time.time()
         if self.saveresults:
             self.save_pipeline()
             return "Pipeline completed successfully."

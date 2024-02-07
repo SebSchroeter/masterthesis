@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import itertools
+from itertools import combinations
 import time 
 from scipy import optimize
 from scipy.optimize import LinearConstraint
@@ -63,6 +64,7 @@ def generate_constraints_df(df):
     constraints_df.columns = [f'w_{party}' for party in parties]
     
     return constraints_df
+
 def generate_eff_cons(df):
     '''main method to create constraints'''
     ## much faster version of generate_constraints_df
@@ -255,3 +257,91 @@ def test_mvws(year, winning_coal_dict, mw_winning_coal_dict):
             errors[(year,coalition)]=(value,mw_winning_coal_dict.get(coalition,'not in here')) #writes to a coalition the value from the winning coal and the min_winning_coal (or indicates that the coal is not actually mi-w)
     check = len(errors)==0
     return check, errors
+
+def collect_all_representations(weights, year, n_in_year, constraints_df, find_error= False):
+    '''reports all possible sets of weights given a found minimal sum, up to changes of +1/-1 seats'''
+    ##takes in a vector of weights such as an element from all_min_vote_weights, a year and the standard dict n_in_year, takes in a constraint df such as an element from the all_constraints_dict
+    # creates a list of all other possbile weight vectors with the same sum and changes of +1/-1 for any weight
+    # tests every one of them to be a solution to the same optimization problem 
+    # returns a list of all possible weights  
+    # find_error prints time to test %ages of all possible combinations
+    alternative_weights = possible_other_weights(weights)
+    optimal_weights = []
+    total_weights = len(alternative_weights)
+    one_percent = round(total_weights / 100)
+    start_time= time.time()
+    for i, alt_weights in enumerate(alternative_weights):
+        lin_cons = alt_lin_cons(alt_weights, constraints_df)
+        mvw_alt = get_min_vote_weights(year, n_in_year, lin_cons)
+        if mvw_alt.status == 0:
+            optimal_weights.append(alt_weights)
+        if find_error & (i + 1) % one_percent == 0:
+            current_time = time.time()
+            elapsed_time = current_time - start_time
+            print(f"Tested {((i + 1) / total_weights) * 100:.2f}% of {total_weights} elements in {elapsed_time:.2f} seconds")
+    return optimal_weights    
+
+def possible_other_weights(minimal_weights):
+    '''helper function for collect_all_representations'''
+    #takes in minimal weights from collect_all_representations
+    #iterates over all possible combinations from adding 1 to a weigth and substracting 1 form a different one
+    #returns a list of all possible alternative weights 
+    
+    weight = np.round(minimal_weights).astype(int) # strictly not really necessary....
+    
+    # Get unique pairs from ogiginal weights (if w=(1,2,3) this returns ((1,2),(1,3),(2,3)))
+    pairs = list(combinations(range(len(weight)), 2)) # get all possbible pairs of weights 
+    
+    alt_weights = [] 
+    
+    for i, j in pairs: 
+        for change in [(1, -1), (-1, 1)]: #any change is either (i+1,j-1) or (i-1,j+1)
+            new_weights = weight.copy()
+            if new_weights[i] + change[0] >= 0 and new_weights[j] + change[1] >= 0: #test non-negativity
+                new_weights[i] += change[0]
+                new_weights[j] += change[1]
+                if not any(np.array_equal(new_weights, arr) for arr in alt_weights): #test whether new weights already in the list
+                    alt_weights.append(new_weights)
+    alt_weights.append(weight) #add original weights to the list
+    return alt_weights
+
+def alt_lin_cons(minimal_weights, constraints_df):
+    '''helper function for collect_all_representations'''
+    #takes in minimal_weights and constraints_df from collect_all_representations 
+    #sets the lower and upper bounds for the non-negativity constraints to be the weights to be tested
+    #returns linear cosntraint object
+    A = constraints_df.to_numpy()
+    if isinstance(minimal_weights, list): # necessary from output of possible_other_weights function 
+        weights = minimal_weights[0]
+    else: weights=minimal_weights
+    lbnd = np.zeros(len(constraints_df))  
+    lbnd[:len(weights)] = weights  
+    lbnd[len(weights):] = 1  
+    upbnd = np.full(len(constraints_df), np.inf) 
+    upbnd[:len(weights)] = weights  
+    lin_cons = LinearConstraint(A, lbnd, upbnd)
+
+    return lin_cons
+
+def all_year_all_possible_weights(all_min_weights,n_in_year,all_constraints,find_error = False): 
+    ##lets collect_all_representations run over all years
+    
+    all_year_all_weights = {}
+    for year,weights in all_min_weights.items(): 
+        yearly_weights = weights
+        constraints=all_constraints.get(year)
+        all_yearly_weights=collect_all_representations(yearly_weights,year,n_in_year,constraints,find_error)
+        all_year_all_weights[year]=all_yearly_weights
+
+    return all_year_all_weights
+
+def mvw_to_parties2(all_year_all_weights, parties_in_year):
+    ## does what get_all_optimized_seats does but for collect_all_representations lists of weights 
+    ##needs some serious polishing 
+    possible_weights = {}
+    for year, weight_lists in all_year_all_weights.items():
+        for i, party in enumerate(parties_in_year[year]):
+            party_weights = [weight_list[i] for weight_list in weight_lists]
+            possible_weights[(year, party)] = tuple(party_weights)
+
+    return possible_weights
