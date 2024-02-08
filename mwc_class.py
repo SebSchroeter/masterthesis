@@ -131,8 +131,7 @@ class getMVWs:
             # "value" columns
             for i in range(len(df.columns) - tuple_columns):
                 df.rename(columns={i: f'Value_{i+1}'}, inplace=True)
-
-            df.to_excel(writer, sheet_name=sheet_name, index=False)        
+            df.to_excel(writer, sheet_name=sheet_name, index=False)
 
   
     def save_pipeline(self):

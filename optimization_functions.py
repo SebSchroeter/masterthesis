@@ -275,7 +275,7 @@ def collect_all_representations(weights, year, n_in_year, constraints_df, find_e
         mvw_alt = get_min_vote_weights(year, n_in_year, lin_cons)
         if mvw_alt.status == 0:
             optimal_weights.append(alt_weights)
-        if find_error & (i + 1) % one_percent == 0:
+        if find_error and ((i + 1) % one_percent == 0 or i == total_weights - 1): ## exclude annoying division by 0 error with i == total_weights - 1
             current_time = time.time()
             elapsed_time = current_time - start_time
             print(f"Tested {((i + 1) / total_weights) * 100:.2f}% of {total_weights} elements in {elapsed_time:.2f} seconds")
@@ -324,24 +324,25 @@ def alt_lin_cons(minimal_weights, constraints_df):
     return lin_cons
 
 def all_year_all_possible_weights(all_min_weights,n_in_year,all_constraints,find_error = False): 
-    ##lets collect_all_representations run over all years
+    ##lets collect_all_representations function run over all years
     
     all_year_all_weights = {}
     for year,weights in all_min_weights.items(): 
         yearly_weights = weights
-        constraints=all_constraints.get(year)
-        all_yearly_weights=collect_all_representations(yearly_weights,year,n_in_year,constraints,find_error)
-        all_year_all_weights[year]=all_yearly_weights
-
+        if len(yearly_weights)>8: #test whether more than 8 players are in the game, for all games with <=8 players min integers are always unique
+            constraints=all_constraints.get(year)
+            all_yearly_weights=collect_all_representations(yearly_weights,year,n_in_year,constraints,find_error)
+            all_year_all_weights[year]=all_yearly_weights
+        else: all_year_all_weights[year]=yearly_weights
     return all_year_all_weights
 
 def mvw_to_parties2(all_year_all_weights, parties_in_year):
     ## does what get_all_optimized_seats does but for collect_all_representations lists of weights 
     ##needs some serious polishing 
     possible_weights = {}
-    for year, weight_lists in all_year_all_weights.items():
+    for year, yearly_weight_lists in all_year_all_weights.items():
         for i, party in enumerate(parties_in_year[year]):
-            party_weights = [weight_list[i] for weight_list in weight_lists]
+            party_weights = [weight_list[i] for weight_list in yearly_weight_lists]
             possible_weights[(year, party)] = tuple(party_weights)
 
     return possible_weights
