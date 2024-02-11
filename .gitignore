@@ -2,3 +2,6 @@
 __pycache__/
 other githubs/
 other githubs/powerindices/
+data/
+results/ 
+results_old/
