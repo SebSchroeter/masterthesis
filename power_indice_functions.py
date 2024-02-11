@@ -1,19 +1,15 @@
 import pandas as pd
 import numpy as np
+import math
+from math import factorial
 import time 
 
 ## these functions follow the logic of the "The Coleman-Shapley-index: Being decisive within the coalition of the interested" Paper, especially Appendix A. 
 ## this is a rebuild of the ssi and pbi generating functions from "powerindices" which can be pip installed
 ## I refer to the documentation on https://github.com/frankhuettner/powerindices and credit for the algorithm goes to Hüttner, Frank
-
-""" def relevant_parties_for_a_year(min_win_coal_dict,year):
-    relevant_parties=set()
-    for (yr,coal),_ in min_win_coal_dict.items(): 
-        if yr==year: 
-            parties = coal.split('+')
-            relevant_parties.update(parties)
-    return relevant_parties """
+   
     ##basic variables
+
 def minimal_winning_coalitions_for_a_year(min_win_coal_dict,year): 
     min_win_coals_year=[]
     for (yr,coal),_ in min_win_coal_dict.items(): 
@@ -72,24 +68,90 @@ def coals_with_i(w_i,Q,q,n,M,i):
         for col in range(n-1,-1,-1): #iterate backwards though relevant cols 
             M_only_i[row,col]=M[row,col]-M_only_i[row+w_i,col+1] #dynamically iterate 
     return M_only_i
-            
-def pb_i(weights,min_cardinality):
-    '''almost correct but not finished ''' 
+##power indices:             
+def pb_and_ss_i(weights,min_cardinality):
+    '''input: list of integer weights and integer listing the number of players in the shortest winning coalition'''
+    '''ouput: tuple of lists, first list are penrose-banzaf index values, second list are shapely-shuib index values '''
+    # merger of compute_pbi and compute_ssi functions from 'powerindices', variable names are aligned with my thesis, some improvements to readability 
+    ## variables
     W= np.array(weights)
     Q=sum(W)
     q=round((Q+1)/2) 
     n=len(weights)
-    scaling = (1/2)*(n-1)
+    ## penrose banzhaf
+    pb_scaling_factor = (1/2)**(n-1)
     pb_list = []
+    ## shapely-shubil
+    shapely_values = [ (factorial(S)*factorial(n-S-1))/factorial(n) for S in range(n) ] ## definition of shapely value
+    ss_list=[]
+    ## total coalition count
     M = coals(W,Q,q,n)
+    
+    ## get individual values
     for i in range(n):
         w_i=W[i]
         M_only_i= coals_with_i(w_i,Q,q,n,M,i)  
-        pb_counter = 0 
+        pb_counter = 0
+        ss_counter = 0 
         for cols in range(min_cardinality-1,n): 
             pb_counter+= M_only_i[q:q+w_i,cols+1].sum(axis=0)
+            ss_counter+= shapely_values[cols]*M_only_i[q:q+w_i,cols+1].sum(axis=0)
+        ss_counter+=shapely_values[min_cardinality-1]*M_only_i[q+w_i:Q+1,min_cardinality].sum(axis=0)
+        ss_list.append(ss_counter)    
         pb_counter+= M_only_i[q+w_i:Q+1,min_cardinality].sum(axis=0)
-        pb_counter= pb_counter*scaling
+        pb_counter= pb_counter*pb_scaling_factor
         pb_list.append(pb_counter)
-    return pb_list
         
+    return pb_list,ss_list
+
+def msr_index_i(weights_dict):
+    '''input: weights dict of one year'''
+    '''outputs: Min-Sum-Rep Index as array'''
+## following Freixas&Kaniovski 2014, especially Section 5
+# this surely could be more efficiently but doesn´t matter 
+    msr_list = np.zeros(len(weights_dict))
+    weights = np.zeros(len(weights_dict))
+    for i,(party,weight) in enumerate(weights_dict.items()):
+        if isinstance(weight,tuple):
+            
+            weights[i] = sum(weight)/len(weight)
+        else: 
+            weights[i] = weight
+            
+    Q = sum(weights)
+    
+    for i in weights: 
+            msr_list=weights/Q       
+    return msr_list    
+
+def combine_names_and_indices(weights_dict,pb_list,ss_list,msr_list): 
+    party_list = []
+    for party,weight in weights_dict.items():
+        party_list.append(party)
+        
+    df = pd.DataFrame(list(zip(party_list,pb_list,ss_list,msr_list)),columns=['Party','Penrose-Banzhaf','Shapely-Shubik','Minimal-Sum'])
+
+    return df 
+
+def power_indices_year(optimal_seats,minimal_winning_coal_dict,year): 
+    '''main method to get power indices '''
+    '''input: optimal_seats_dict of form ((year,party),seats) and minimal_winning_coal_dict of form ((year,coal),1); year as string '''
+    '''output: dataframe '''
+    ## get basic variables
+    weights_dict=grab_relevant_weights(optimal_seats,year)
+    weights = weight_dict_to_array(weights_dict)
+    min_win_coals = minimal_winning_coalitions_for_a_year(minimal_winning_coal_dict,year)
+    min_len=mincardinality(min_win_coals)
+    ## get bs and ss 
+    pb_list,ss_list = pb_and_ss_i(weights,min_len)
+    ## get minimal sum representation index
+    msr_list=msr_index_i(weights_dict)
+    df=combine_names_and_indices(weights_dict,pb_list,ss_list,msr_list)
+    return df
+
+def get_power_indices(optimal_seats,minimal_winning_coal_dict): 
+    all_power_indices_dict = {}
+    for (year,party),seats in optimal_seats.items():
+        df=power_indices_year(optimal_seats,minimal_winning_coal_dict,year)
+        all_power_indices_dict[year]=df
+    return all_power_indices_dict
