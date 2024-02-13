@@ -20,7 +20,7 @@ def minimal_winning_coalitions_for_a_year(min_win_coal_dict,year):
 def mincardinality(min_win_coals_year): 
     cardinalities = []
     for i in min_win_coals_year: 
-        parties = i.split('+')
+        parties = i.split('+') if '+' in i else [i] ## account for dictator parties --> single party is minimal winning --> can´t split the coalition at '+' signs
         cardinalities.append(len(parties))
     min_cardinality = min(cardinalities)
     return min_cardinality

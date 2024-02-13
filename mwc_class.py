@@ -54,9 +54,20 @@ class getMVWs:
     ######## Main Methods #############
 
     def preliminaries(self):
-
-        self.read_and_transform_data()
-        self.get_variables()
+        try:
+            self.read_and_transform_data()
+            self.get_variables()
+        except:
+            self.encoding='UTF-8'
+            try:
+                self.delimiter=';'
+                self.read_and_transform_data()
+                self.get_variables()     
+            except:
+                self.delimiter=','
+                self.read_and_transform_data()
+                self.get_variables()                
+                                                   
         self.generate_coalition_combinatorics()
         self.identify_winning_coalitions()
         self.find_minimal_winning_coalitions()
@@ -84,15 +95,13 @@ class getMVWs:
         self.Find_all_contraints()
         self.Find_all_lin_cons()
         self.Find_all_min_weights()
-        if not self.find_all_weights:
-            self.All_the_optimal_seats()
-            if self.verify: 
-                self.verify_found_miw()
+        self.All_the_optimal_seats()
+        if self.verify: 
+            self.verify_found_miw()
                 #print(self.bools)
-                #print(self.errors)    
-        else: 
-            self.all_alt_weights()
-            self.alt_weigths_withnames()
+                #print(self.errors)           
+        self.all_alt_weights()
+        self.alt_weigths_withnames()
         #self.time = time.time()
         if self.saveresults:
             self.save_pipeline()

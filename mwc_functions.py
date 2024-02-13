@@ -22,17 +22,21 @@ def transform_and_sort_dataframe(df):
     ## takes in a dataframe from read_csv_to_dataframe
     ## drops empty rows 
     ## substitutes "+" signs in party name for "plus" since many functions use '+'.join(combi) syntax and thus join parties at false places 
-    ## strips partys with 0 seats, strips days and months
+    ## strips partys with 0 seats
+    ## accounts for multiple elections per year (hopefully)
     ## sorts by year-party
     df.dropna(axis=0,how='any',inplace=True)
     df = df[df['# of Seats'] != 0].copy()
     #df['Party'] = df['Party'].str[:30]
     df['Date']=df['Date'].apply(str) # force str formatting
     df['Party'] = df['Party'].str.replace('+', 'plus', regex=False)
-    df['Year'] = df['Date'].str[-2:]    # get the year
-    df['Year'] = df['Year'].apply(lambda x: '19' + x if int(x) > 75 else '20' + x) # Adding '19' or '20' to make it full years
-    df = df[['Year', 'Party', '# of Seats']].copy()
-    df.sort_values(by=['Year', 'Party'], inplace=True)
+    #try df magic:
+    df['YearMonth'] = pd.to_datetime(df['Date'], errors='coerce', format='%d. %b %y').dt.strftime('%Y-%m')
+    #whenever magic fails: 
+    df['YearMonth'] = df['YearMonth'].fillna(df['Date'].str[-7:])
+        #df['Year'] = df['Year'].apply(lambda x: '19' + x if int(x) > 75 else '20' + x) # Adding '19' or '20' to make it full years
+    df = df[['YearMonth', 'Party', '# of Seats']].copy()
+    df.sort_values(by=['YearMonth', 'Party'], inplace=True)
 
     return df
 
@@ -44,11 +48,11 @@ def variables_by_year(df):
     totalseats_in_year = {}
     n_in_year = {}
 
-    for year, group in df.groupby('Year'):
+    for YearMonth, group in df.groupby('YearMonth'):
         parties = group['Party'].unique().tolist() #add unique elements of group to list 
-        parties_in_year[year] = parties #add list to dict 
-        totalseats_in_year[year] = group['# of Seats'].sum() #add sum of group to dict 
-        n_in_year[year] = len(parties) # get n for every year and add to dict
+        parties_in_year[YearMonth] = parties #add list to dict 
+        totalseats_in_year[YearMonth] = group['# of Seats'].sum() #add sum of group to dict 
+        n_in_year[YearMonth] = len(parties) # get n for every year and add to dict
 
     return parties_in_year, totalseats_in_year, n_in_year
 
@@ -58,19 +62,19 @@ def coalition_combinatorics_generator(df,parties_in_year):
     ## creates a dict for all coalitions in a given year and their seats
     coalition_dict = {}
 
-    for year, year_df in df.groupby('Year'): # Iterate over each year in the DataFrame
-        parties = parties_in_year[year]
-        seats = dict(zip(df[df['Year'] == year]['Party'], df[df['Year'] == year]['# of Seats']))  # boolean mask of df(year)=year to get new df of only the relevant year. Then zips parties and seats togeterh
+    for YearMonth, year_df in df.groupby('YearMonth'): # Iterate over each year in the DataFrame
+        parties = parties_in_year[YearMonth]
+        seats = dict(zip(df[df['YearMonth'] == YearMonth]['Party'], df[df['YearMonth'] == YearMonth]['# of Seats']))  # boolean mask of df(year)=year to get new df of only the relevant year. Then zips parties and seats togeterh
 
         #add empty coalition 
-        coalition_dict[(year, '')]=0
+        coalition_dict[(YearMonth, '')]=0
         
         # Generate all unique coalitions
         for r in range(1, len(parties) + 1):
             for combi in itertools.combinations(parties, r): #itertools.combinations creates r-length tuples, in sorted order, no repeated elements
                 coalition = '+'.join(combi) #naming the coalitions
                 total_seats = sum(seats[party] for party in combi) # calc seats of the coalition
-                coalition_dict[(year, coalition)] = total_seats # add seats as values to dict with (year,coalition) tuple as key
+                coalition_dict[(YearMonth, coalition)] = total_seats # add seats as values to dict with (year,coalition) tuple as key
 
     return coalition_dict
    

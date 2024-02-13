@@ -338,9 +338,12 @@ def all_year_all_possible_weights(all_min_weights,n_in_year,all_constraints,find
 
 def mvw_to_parties2(all_year_all_weights, parties_in_year):
     ## does what get_all_optimized_seats does but for collect_all_representations lists of weights 
-    ##needs some serious polishing 
+    ## needs some serious polishing 
+    ## now checks wether value is a list forst and if not turns it into a list
     possible_weights = {}
     for year, yearly_weight_lists in all_year_all_weights.items():
+        if isinstance(yearly_weight_lists,np.ndarray):
+            yearly_weight_lists=[yearly_weight_lists] # pass the array to a list with only itself as element
         for i, party in enumerate(parties_in_year[year]):
             party_weights = [weight_list[i] for weight_list in yearly_weight_lists]
             possible_weights[(year, party)] = tuple(party_weights)
