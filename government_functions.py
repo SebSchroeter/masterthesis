@@ -24,8 +24,15 @@ def match_ministries_and_elections(countryname,election_dates,df):
         election_period_dict[key]=df_for_electionperiod
     return election_period_dict
 
+def starting_gov_dict(election_period_dict): 
+    governments_dict={}
+    for election,df_for_electionperiod in election_period_dict.items(): 
+        starting_gov=df_for_electionperiod.loc[df_for_electionperiod['Start']==df_for_electionperiod['Start'].min(),['Position','Party']]
+        governments_dict[election]=starting_gov
+    return governments_dict
+
 def get_ministry_dicts(df,parties): 
-    ## takes in a df_for_electionperiod with cols position and party and a list of all parties
+    ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
     ## creates 3 dicts, which store the following information
     dict_1={} #(party,list_of_ministries)
     dict_2={} #(party,number_of_ministries)
