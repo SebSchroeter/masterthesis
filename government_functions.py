@@ -1,6 +1,10 @@
 import pandas as pd 
 import warnings
 warnings.formatwarning = lambda msg, *args, **kwargs: f'{msg}\n'
+from fuzzywuzzy import fuzz
+from fuzzywuzzy import process
+
+
 def process_gov_csv(file_name): 
     ## takes in a csv file from political yearbook, containing individual ministry information for a country
     df= pd.read_csv(file_name, delimiter="\t",encoding='utf-16')
@@ -84,18 +88,49 @@ def starting_gov_dict(election_period_dict,countryname):
     return governments_dict,edge_cases
 
 
-def get_ministry_dicts(df,parties): 
+def get_fuzzy_ministry_dicts(df,parties): 
     ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
     ## creates 3 dicts, which store the following information
+    
+    ## uses fuzzy matching to catch cases where the party of the minister is written differently from the party name in the parliament 
     dict_1={} #(party,list_of_ministries)
     dict_2={} #(party,number_of_ministries)
     dict_3={} #(party,weighted_number_of_ministries) ## weighting prime minister = 3, all other 1
     prime_minister=df.iloc[0]['Position'] #prime minister, chancellor whatever is always the first entry of the df, if created correctly from political yearbook data
-    for party in parties: 
+    
+    for party in parties:
+        #check for perfect matches
         ministries=df[df['Party']==party]['Position'].tolist()
+        if not ministries: #if no match for this party then do fuzzy matching 
+            reverse_matches_dict = {}
+            for partyy in df['Party'].unique(): 
+               best_fitting_party,score=process.extractOne(partyy,parties)
+               if score>40: 
+                reverse_matches_dict[best_fitting_party] =partyy
+            ministries=df[df['Party']==reverse_matches_dict.get(party)]['Position'].tolist()
         dict_1[party]=ministries
         dict_2[party]=len(ministries)
         weighted_ministries= len(ministries) + 2 if prime_minister in ministries else len(ministries)
         dict_3[party]=weighted_ministries
     return dict_1,dict_2,dict_3
+
+def get_ministry_dicts(df,parties): 
+    ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
+    ## creates 3 dicts, which store the following information
+    
+    ## uses fuzzy matching to catch cases where the party of the minister is written differently from the party name in the parliament 
+    dict_1={} #(party,list_of_ministries)
+    dict_2={} #(party,number_of_ministries)
+    dict_3={} #(party,weighted_number_of_ministries) ## weighting prime minister = 3, all other 1
+    prime_minister=df.iloc[0]['Position'] #prime minister, chancellor whatever is always the first entry of the df, if created correctly from political yearbook data
+    
+    for party in parties:
+        #check for only perfect matches
+        ministries=df[df['Party']==party]['Position'].tolist()
         
+        dict_1[party]=ministries
+        dict_2[party]=len(ministries)
+        weighted_ministries= len(ministries) + 2 if prime_minister in ministries else len(ministries)
+        dict_3[party]=weighted_ministries
+    return dict_1,dict_2,dict_3
+                
