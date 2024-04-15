@@ -90,12 +90,13 @@ def starting_gov_dict(election_period_dict,countryname):
 
 def get_fuzzy_ministry_dicts(df,parties): 
     ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
-    ## creates 3 dicts, which store the following information
+    ## creates 4 dicts, which store the following information
     
     ## uses fuzzy matching to catch cases where the party of the minister is written differently from the party name in the parliament 
     dict_1={} #(party,list_of_ministries)
     dict_2={} #(party,number_of_ministries)
     dict_3={} #(party,weighted_number_of_ministries) ## weighting prime minister = 3, all other 1
+    dict_4={} # stores prime minister information boolean (party,1/0)
     prime_minister=df.iloc[0]['Position'] #prime minister, chancellor whatever is always the first entry of the df, if created correctly from political yearbook data
     
     for party in parties:
@@ -112,16 +113,19 @@ def get_fuzzy_ministry_dicts(df,parties):
         dict_2[party]=len(ministries)
         weighted_ministries= len(ministries) + 2 if prime_minister in ministries else len(ministries)
         dict_3[party]=weighted_ministries
-    return dict_1,dict_2,dict_3
+        if prime_minister in ministries:
+            dict_4[party]=1
+        else: dict_4[party]=0
+    return dict_1,dict_2,dict_3,dict_4
 
 def get_ministry_dicts(df,parties): 
     ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
-    ## creates 3 dicts, which store the following information
+    ## creates 4 dicts, which store the following information
     
-    ## uses fuzzy matching to catch cases where the party of the minister is written differently from the party name in the parliament 
     dict_1={} #(party,list_of_ministries)
     dict_2={} #(party,number_of_ministries)
     dict_3={} #(party,weighted_number_of_ministries) ## weighting prime minister = 3, all other 1
+    dict_4={} # stores prime minister information boolean (party,1/0)
     prime_minister=df.iloc[0]['Position'] #prime minister, chancellor whatever is always the first entry of the df, if created correctly from political yearbook data
     
     for party in parties:
@@ -132,5 +136,8 @@ def get_ministry_dicts(df,parties):
         dict_2[party]=len(ministries)
         weighted_ministries= len(ministries) + 2 if prime_minister in ministries else len(ministries)
         dict_3[party]=weighted_ministries
-    return dict_1,dict_2,dict_3
+        if prime_minister in ministries:
+            dict_4[party]=1
+        else: dict_4[party]=0
+    return dict_1,dict_2,dict_3,dict_4
                 
