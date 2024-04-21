@@ -25,7 +25,7 @@ def match_ministries_and_elections(countryname,election_dates,df):
     sorted_elections= sorted(pd.to_datetime(election_dates, format=f'{countryname}-%b-%y'))
     election_period_dict = {}
     for i in range((len(sorted_elections))): 
-        #get timeframe for ministerial appointments per election (start: election -1 month)
+        #get timeframe for ministerial appointments per election (start: election -1 month) (end: next eletion-1 month)
         start=sorted_elections[i]
         adjusted_start= start - pd.DateOffset(months=1)
         end = (sorted_elections[i+1] if i+1<len(sorted_elections) else pd.Timestamp.today())- pd.DateOffset(months=1)#.strftime('-%b-%y')
@@ -38,7 +38,7 @@ def match_ministries_and_elections(countryname,election_dates,df):
         
     return election_period_dict
 
-def starting_gov_dict_old(election_period_dict): 
+#def starting_gov_dict_old(election_period_dict): 
     ### depreciated
     governments_dict={}
     for election,df_for_electionperiod in election_period_dict.items(): 
@@ -120,14 +120,18 @@ def get_fuzzy_ministry_dicts(df,parties):
 
 def get_ministry_dicts(df,parties): 
     ## takes in a df with cols position and party and a list of all parties like a value from governments_dict
-    ## creates 4 dicts, which store the following information
+    ## creates 5 dicts, which store the following information
     
     dict_1={} #(party,list_of_ministries)
     dict_2={} #(party,number_of_ministries)
     dict_3={} #(party,weighted_number_of_ministries) ## weighting prime minister = 3, all other 1
     dict_4={} # stores prime minister information boolean (party,1/0)
+    dict_5={} #(party,number_of_ministries besides prime minister) ##to account for endogeneity of dict_2
+    
+    ##encode pm
     prime_minister=df.iloc[0]['Position'] #prime minister, chancellor whatever is always the first entry of the df, if created correctly from political yearbook data
     
+    ## loop over all parties
     for party in parties:
         #check for only perfect matches
         ministries=df[df['Party']==party]['Position'].tolist()
@@ -138,6 +142,9 @@ def get_ministry_dicts(df,parties):
         dict_3[party]=weighted_ministries
         if prime_minister in ministries:
             dict_4[party]=1
-        else: dict_4[party]=0
-    return dict_1,dict_2,dict_3,dict_4
+            dict_5[party]=len(ministries)-1
+        else: 
+            dict_4[party]=0
+            dict_5[party]=len(ministries)
+    return dict_1,dict_2,dict_3,dict_4,dict_5
                 
