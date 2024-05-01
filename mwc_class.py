@@ -34,6 +34,7 @@ class getMVWs:
         self.coalition_dict = None
         self.winning_coal_dict = None
         self.minimal_winning_coalitions = None
+        self.same_type_dict = None
         self.maximal_losing_coalitions = None
         self.unique_tying_coalitions = None
         self.n_in_year = None
@@ -48,6 +49,7 @@ class getMVWs:
         self.alternative_weights=None
         self.bools = None
         self.errors = None
+        self.crit_cases = None
         #Ini power
         self.power_indices = None 
 
@@ -71,6 +73,7 @@ class getMVWs:
         self.generate_coalition_combinatorics()
         self.identify_winning_coalitions()
         self.find_minimal_winning_coalitions()
+        self.find_sametypes()
         self.find_maximal_losing_coalitions()
         self.find_unique_tying_coalitions()
         self.time = time.time()
@@ -102,11 +105,13 @@ class getMVWs:
                 #print(self.errors)           
         self.all_alt_weights()
         self.alt_weigths_withnames()
-        #self.time = time.time()
+        self.verify_types()
+        
         if self.saveresults:
             self.save_pipeline()
             return "Pipeline completed successfully."
         else:
+            print(self.crit_cases)
             return {"Dataframes":self.all_dfs,
                 "Constraints":self.all_constraints,
                 "Linear Constraints": self.all_lin_cons,
@@ -147,6 +152,7 @@ class getMVWs:
                 self._save_dict_to_excel_sheet(self.coalition_dict, 'Coalitions', writer)
                 self._save_dict_to_excel_sheet(self.winning_coal_dict, 'Winning Coalitions', writer)
                 self._save_dict_to_excel_sheet(self.minimal_winning_coalitions, 'Minimal Winning Coalitions', writer)
+                self._save_dict_to_excel_sheet(self.same_type_dict, 'Same Types', writer)
                 self._save_dict_to_excel_sheet(self.maximal_losing_coalitions, 'Maximal Losing Coalitions', writer)
                 if self.unique_tying_coalitions: # boolean python magic - if the dict has any entry it "is true" --> check if dict is empty 
                     self._save_dict_to_excel_sheet(self.unique_tying_coalitions, 'Unique Tying Coalitions', writer)
@@ -216,6 +222,8 @@ class getMVWs:
         self.winning_coal_dict = win_coals(self.coalition_dict, self.totalseats_in_year)
     def find_minimal_winning_coalitions(self):
         self.minimal_winning_coalitions = min_winning_coals(self.winning_coal_dict)
+    def find_sametypes(self): 
+        self.same_type_dict=party_types(self.minimal_winning_coalitions,self.coalition_dict)
     def find_maximal_losing_coalitions(self):
         self.maximal_losing_coalitions = max_loosing_coals(self.winning_coal_dict, self.parties_in_year)
     def find_unique_tying_coalitions(self):
@@ -239,7 +247,8 @@ class getMVWs:
         self.alternative_weights =all_year_all_possible_weights(self.all_min_weights,self.n_in_year,self.all_constraints,self.find_errors)
     def alt_weigths_withnames(self): 
         self.optimal_seats = mvw_to_parties2(self.alternative_weights,self.parties_in_year)
-        
+    def verify_types(self): 
+        self.crit_cases=check_type_consistency(self.same_type_dict,self.optimal_seats)    
     #power indice wrapper
     def all_power_indices(self): 
         self.power_indices = get_power_indices(self.optimal_seats,self.minimal_winning_coalitions)

@@ -82,7 +82,7 @@ def pb_and_ss_i(weights,min_cardinality):
     pb_scaling_factor = (1/2)**(n-1)
     pb_list = []
     ## shapely-shubil
-    shapely_values = [ (factorial(S)*factorial(n-S-1))/factorial(n) for S in range(n) ] ## definition of shapely value
+    shapely_values = [ (factorial(C)*factorial(n-C-1))/factorial(n) for C in range(n) ] ## definition of shapely value
     ss_list=[]
     ## total coalition count
     M = coals(W,Q,q,n)

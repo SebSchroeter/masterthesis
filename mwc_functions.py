@@ -117,6 +117,52 @@ def min_winning_coals(winning_coal_dict):
 
     return min_win_coal_dict
 
+def party_types(min_win_coal_dict,coal_dict):
+    '''checks whether any two parties are of the same type for a given country'''
+    ##input: dict of all minimal winning coalitions and dict of all coalitions 
+    ##ouput: dict with keys: year and value: list of tuples, each tuple indicates parties of the same type.  
+    types={}
+    for (year,_),_ in min_win_coal_dict.items(): 
+        if year not in types: 
+            types[year]= set()
+
+        relevant_parties=set()
+        #generate set of parties from mwc, to drop dummy players: 
+        for (yr,coal),_ in min_win_coal_dict.items(): 
+            if yr==year: 
+                parties=coal.split('+')
+                relevant_parties.update(parties)
+        ##pairwise check if of same type        ##
+        #outer loops over all relevant parties
+        for party_a in relevant_parties: 
+            for party_b in relevant_parties: 
+                if party_a != party_b: 
+                    #check whether substituting a for b or b for a swaps any coalition status
+                    same_type = True #initiate boolean 
+                    for (yr,coal),_ in min_win_coal_dict.items(): 
+                        #check all coalitions of the parliament
+                        if yr==year: 
+                            parties=coal.split('+')
+                            if party_a in parties or party_b in parties: 
+                                #swap
+                                # If swapping a and b (only where they acutally appear) does not change the outcome of any coalition, they are of the same type 
+                                swap_party_a=[party_b if party == party_a else party for party in parties] 
+                                swap_party_b=[party_a if party == party_b else party for party in parties]
+                                #check with helper function, see below 
+                                if not (type_helper_fnc(swap_party_a,coal_dict,year)==type_helper_fnc(swap_party_b,coal_dict,year)): 
+                                   same_type= False
+                                   break
+                    if same_type: types[year].add(tuple(sorted((party_a,party_b)))) # ensure pairings are listed only once
+    for year in types: 
+        types[year]= list(types[year])
+    return types
+                    
+def type_helper_fnc(parties,coal_dict,year): 
+    '''helper function for party_types'''
+    # looks up value from the coal_dict to check whether switched parties make a difference 
+    coal_name='+'.join(sorted(parties))
+    return coal_dict.get((year,coal_name),0)                    
+
 def max_loosing_coals(winning_dict, parties_in_year):
     ##inverse to min_winning_coals with similar logic
     ## takes in one dict containing all coalitions with boolean values and a dict listing all parties for a given year

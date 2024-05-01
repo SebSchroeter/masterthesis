@@ -349,3 +349,20 @@ def mvw_to_parties2(all_year_all_weights, parties_in_year):
             possible_weights[(year, party)] = tuple(party_weights)
 
     return possible_weights
+
+def check_type_consistency(same_type_dict,optimal_seats): 
+    ## checks whether identified weights are type consistent
+    crit_cases=[]
+    for year,tuple in same_type_dict.items(): 
+        if tuple:    
+            # create elements to llok for in "possible weights"
+            for (party_a,party_b) in tuple:
+                key_a = (year,party_a)
+                key_b = (year,party_b)
+            if key_a in optimal_seats and key_b in optimal_seats: 
+                if optimal_seats[key_a] == optimal_seats[key_b]: 
+                    pass 
+                else: #handle cases where weights hsould coincide but do not
+                    crit_cases.append(f"For {year}, '{party_a}' and '{party_b}' are of the same type but have different weights: {optimal_seats[key_a]} vs {optimal_seats[key_b]}.")
+        else: continue
+    return crit_cases
