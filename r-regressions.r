@@ -1,5 +1,6 @@
 rm(list = ls())
 library(tidyr)
+library(dplyr)
 library(lmtest)
 library(httpgd)
 library(zoib)
@@ -11,32 +12,97 @@ library(ggplot2)
 library(ggcorrplot)
 library(nlme)
 library(lsmeans)
+library(patchwork)
 
 setwd("~/Sebastian Masterthesis/Git repo/masterthesis")
 df<-read_feather("long_df.feather")
+monte_carlo_df<-read_feather("monte_carlo_df.feather")
+######prelims#####
 df$Country<-factor(df$Country)
 df$pm<-factor(df$pm)
+df$is_gov<-as.integer(df$unweighted_ministries>0)
+##subsetting only government coalition parties
+gov_df=df %>% filter(is_gov==1)
 #############correlation##########
 names(df)[names(df) == "mvw"] <- "MVW"
 names(df)[names(df) == "Seats"] <- "Seat Share"
-corr<-cor(df[,3:6])
+corr<-cor(df[,3:6],use = "complete.obs")
 head(corr[, 1:3])
 ggcorrplot(corr, hc.order = TRUE, type = "lower",
            lab = TRUE,lab_size = 5,
+           legend.title = "Correlation Coeff.",
            colors = c("blue4","white","red"),
-           ggtheme = ggplot2::theme_classic,
-           title = 'Correlation between Indices and Seat Share')
+           ggtheme = ggplot2::theme_light,
+           tl.cex = 13)
+           
+names(df)[names(df) == "Seat Share"] <- "Seats"
+names(df)[names(df) == "PB-I"] <- "PBI"
+names(df)[names(df) == "SS-I"] <- "SSI"
+
+      ##plotting all power indices
+ggplot(df,aes(x=Seats))+
+        geom_point(aes(y=MVW,color='MVW'),size=2,alpha=0.5)+
+        geom_point(aes(y=PBI,color='PB-I'),size=2,alpha=0.5)+
+        geom_point(aes(y=SSI,color='SS-I'),size=2,alpha=0.5)+
+        geom_smooth(aes(y=MVW,color='MVW'),method = "glm")+
+        geom_smooth(aes(y=PBI,color='PB-I'),method = "glm")+
+        geom_smooth(aes(y=SSI,color='SS-I'),method = "glm")+
+        theme_light()+
+        theme(
+          axis.title.x = element_text(size = 15),
+          axis.title.y = element_text(size = 15),
+          legend.text = element_text(size = 13),
+          legend.title = element_text(size = 13)
+        )+
+        scale_x_continuous(limits=c(0, 0.5), breaks=seq(0, 0.5, by=0.1), labels=seq(0, 0.5, by=0.1))+
+        scale_color_manual(values=c("MVW"="black", "PB-I"="blue", "SS-I"="red"),
+                     name="Variable",
+                     breaks=c("MVW", "PB-I", "SS-I"),
+                     labels=c("MVW", "PB-I", "SS-I"))+
+        labs(x = "Seat Share",y = "Power index")
+
+
+    ##plotting only MVW of all 
+cor_mvw_all<-cor(df$Seats,df$unweighted_ministries,use = "complete.obs")
+scatter_mvw_all<-ggplot(df,aes(x=Seats))+
+  geom_point(aes(y=MVW),color='black',size=1.5,alpha=1)+
+  geom_text(aes(x = Inf, y = Inf, label = sprintf("Corr: %.2f", cor_mvw_all)), 
+            hjust = 2, vjust = 35, size = 6, color = 'blue')+
+  theme_light()+
+  theme(
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15),
+    legend.position = "none")+
+  labs(x = "Seat Share all Parties",y = "MVW")
+
+
+    ##plotting only MVW from Governing Parties 
+cor_mvw_gov<-cor(gov_df$Seats,gov_df$unweighted_ministries,use = "complete.obs")
+scatter_mvw_gov<-ggplot(gov_df,aes(x=Seats))+
+  geom_point(aes(y=MVW),color='black',size=1.5,alpha=1)+
+  geom_text(aes(x = Inf, y = Inf, label = sprintf("Corr: %.2f", cor_mvw_gov)), 
+            hjust = 2, vjust = 35, size = 6, color = 'blue')+
+  theme_light()+
+  theme(
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15),
+    legend.position = "none")+
+  labs(x = "Seat Share Governing Parties",y = "MVW")
+    ##combining plots 
+mvw_plots<-scatter_mvw_all+scatter_mvw_gov+plot_layout(ncol=2)
+print(mvw_plots)
 ############# ols ###############
 #baseline- replication
 base_ols<-lm(unweighted_ministries~mvw+factor(pm),data = df)
 summary(base_ols)
-  #95% confid intervals 
-confint(base_ols)
-
+gov_base_ols<-lm(unweighted_ministries~mvw+factor(pm),data = gov_df)
+summary(gov_base_ols)
+  
 #endogenous ministries
 endo_ols<-lm(endo~mvw+factor(pm),data = df)
 summary(endo_ols)
-confint(endo_ols)
+gov_endo_ols<-lm(endo~mvw+factor(pm),data = gov_df)
+summary(gov_endo_ols)
 
 
 #testing country fe
@@ -46,6 +112,9 @@ endo_fe_ols<-lm(endo~mvw+factor(pm)+factor(Country),data = df)
 #accounting for seat share
 base_seat_ols<-lm(unweighted_ministries~mvw+Seats+factor(pm),data = df)
 endo_seat_ols<-lm(unweighted_ministries~mvw+Seats+factor(pm),data = df)
+gov_base_seat_ols<-lm(unweighted_ministries~mvw+Seats+factor(pm),data = gov_df)
+gov_endo_seat_ols<-lm(unweighted_ministries~mvw+Seats+factor(pm),data = gov_df)
+
 
 #seatshare with fe 
 base_seat_fe_ols<-lm(unweighted_ministries~mvw+Seats+factor(pm)+factor(Country),data = df)
@@ -74,19 +143,19 @@ fit_ols_seats_weighted<-lm(weighted_ministries~mvw+Seats+factor(pm),data = df)
 
 ##output##
 #list base+endo: 
-first_list<-list(base_ols,endo_ols)
+first_list<-list(base_ols,gov_base_ols,endo_ols,gov_base_ols)
 second_list<-list(base_ols,endo_ols,base_seat_ols,endo_seat_ols)
 third_list<-list(base_ols,endo_ols,base_fe_ols,endo_fe_ols,base_seat_fe_ols,endo_seat_fe_ols,fit_ols_seats_weighted)
 #tex outputs
-screenreg(first_list,
+texreg(first_list,
           ci.force.level = 0.95,
           ci.force = T,
-          custom.model.names = c("Base Replication","Endogenous PM"),
-          #custom.header = list("Plain"=1:3,"With Seat Share"=4:6,"With Seat Share and PM- Indicator"=7:9),
-          #custom.coef.names = c("Intercept","MVW","SS-I","PB-I","Seat Share","Prime Minister"),
+          custom.model.names = c("All Parties","Only Gov. Parties","All Parties","Only Gov. Parties"),
+          custom.header = list("All Ministries"=1:2,"Without PM"=3:4),
+          custom.coef.names = c("Intercept","MVW","Prime Minister"),
           dcolumn = T,booktabs = T, 
-          #caption = "Comparison of Power Indices", 
-          sideways = T, 
+          caption = "Influence of MVW on Cabinet Shares", 
+          sideways = F, 
           #bold = 0.05,
           omit.coef = "Country", 
           digits = 3,
@@ -159,16 +228,16 @@ coxtest(fit_2,fit_3)
 ## with independent formateur draws 
 ols<-function(df){
   #generate sample
-  df$formateur<-rbinom(n=nrow(df),size = 1,prob = df$Seats)
+  df$formateur<-rbinom(n=nrow(df),size = 1,prob = df$mvw_i)
   #call lm
-  model<-lm(unweighted_ministries~mvw+Seats+factor(formateur),data = df)
+  model<-lm(gov_share~mvw_i+Seats+factor(formateur),data = df)
   #collect coeffitients and p values
   estimates<-summary(model)$coefficients[,1]
   p_values<-summary(model)$coefficients[,4]
   return(list("estimates"=estimates,"p_values"=p_values))
 }
 ## formateur per parliament ##
-ols_per_parliament<-function(df,Seat_bool){
+ols_per_parliament<-function(df){
   #overwrite formateurs
   df$formateur<- NA
   #list all parliaments 
@@ -177,29 +246,24 @@ ols_per_parliament<-function(df,Seat_bool){
   for (parliament in parliaments){
     indice<-which(df$Parliament==parliament)
     #sample 1 formateur per batch as previously
-    if (Seat_bool==T){
-    formateurs<-sample(indice,size = 1,prob = df$Seats[indice])
-    } else {
-      formateurs<-sample(indice,size = 1,prob = df$mvw[indice])
-    }
+    formateurs<-sample(indice,size = 1,prob = df$mvw_i[indice])
     df$formateur[indice]<-0
     df$formateur[formateurs]<-1
   }
-  model<-lm(unweighted_ministries~mvw+Seats+factor(formateur),data = df)
+  model<-lm(gov_share~x+factor(formateur),data = df)
   #collect coeffitients and p values
   estimates<-summary(model)$coefficients[,1]
   p_values<-summary(model)$coefficients[,4]
   return(list("estimates"=estimates,"p_values"=p_values))
 }
-monte_carlo_ols <- function(df, n, Seat_bool) {
+monte_carlo_ols <- function(df, n) {
   # storage
   all_estimates <- list()
   all_p_values <- list()
   # loop
   for (i in 1:n) {
-    ## decide whether to use independent formateurs or per-parliament wise: by using ols(df) or ols_per_parliament(df) 
-          #careful: ols_per_parliament takes much longer due to looping over all parliaments n times.
-    result <- ols_per_parliament(df,Seat_bool)
+          #careful: ols_per_parliament takes long due to looping over all parliaments n times.
+    result <- ols_per_parliament(df)
     all_estimates[[i]] <- result$estimates
     all_p_values[[i]] <- result$p_values
   }
@@ -210,23 +274,39 @@ monte_carlo_ols <- function(df, n, Seat_bool) {
   return(list("estimates_df" = estimates_df, "p_values_df" = p_values_df))
 }
 ## draws & study ##
+monte_carlo_df$x=monte_carlo_df$lambda_prop*monte_carlo_df$mvw_i
 set.seed(123)
-mc_results_Seats<-monte_carlo_ols(df,5000,Seat_bool = T)
-mc_results_MVW<-monte_carlo_ols(df,5000,Seat_bool = F)
-## historgrams ##
-hist(mc_results_Seats$estimates_df[,4],xlim = c(-0.1,0.1),breaks = 20,
-     main="Formateur-Coefficient Distribution",
-     xlab="Formateur-Coeffiecients",)
-hist(mc_results_Seats$p_values_df[,4],breaks = 20,
-     main="Formateur-Coefficient p-Values",
-     xlab="p-values of fomateur-coefficients",)
-hist(mc_results_MVW$estimates_df[,4],xlim = c(-0.1,0.1),breaks = 20,
-     main="Formateur-Coefficient Distribution",
-     xlab="Formateur-Coeffiecients",)
-hist(mc_results_MVW$p_values_df[,4],breaks = 20,
+mc_results<-monte_carlo_ols(monte_carlo_df,5000)
+## histograms ##
+est_df<-as.data.frame(mc_results$estimates_df)
+names(est_df)[names(est_df) == "factor(formateur)1"] <- "formateur"
+mean_formateur<-mean(est_df$formateur)
+hist(mc_results$estimates_df[,3],xlim = c(-0.15,0.15),breaks = 20)
+
+ggplot(est_df,aes(x=formateur))+geom_histogram(
+  color="grey",
+  bins = 30)+
+  geom_vline(aes(xintercept=mean(formateur)),
+             linetype="dashed",size=1.5)+
+  theme_light()+
+  theme(
+    axis.title.x = element_text(size = 15),
+    axis.title.y = element_text(size = 15))+
+  labs(x = "Formateur Coefficients \u03B2_1",y = "Frequency")
+hist(mc_results$estimates_df[,2],breaks = 20,
+     main="Weight-Coefficient Distribution",
+     xlab="Weight-Coeffiecients",)
+hist(mc_results$estimates_df[,1],breaks = 20,
+     main="Constant-Coefficient Distribution",
+     xlab="Constant-Coeffiecients",)
+
+ hist(mc_results$p_values_df[,3],xlim = c(0,1),breaks = 100,
      main="Formateur-Coefficient p-Values",
      xlab="p-values of fomateur-coefficients",)
 
+
+percent_significant_formateur<-sum(mc_results$p_values_df[,3]<=0.05)/length(mc_results$p_values_df[,3])
+c<-mean(mc_results$estimates_df[,2])*mean(monte_carlo_df$lambda_prop)
 ##### test of using zero inflated beta regression:  #####
   ## most stupid version
 fit_zib <-brm(unweighted_ministries~mvw+Seats,data = df,family = zero_inflated_beta(link = "logit", link_phi = "log", link_zi = "logit"))
@@ -298,9 +378,4 @@ conditional_effects(fit_zib)
 
 
 #####testing########
-anova_model <- lm(expression ~ diet * group, data = two_factor_crossed)
-anova(anova_model)
-int_model <- lm(expression ~ diet * group, data = two_factor_crossed)
-main_effects <- lm(expression ~ diet + group, data = two_factor_crossed)
-# Interaction effect is probably real:
-anova(main_effects, int_model)
+mc_results$estimates_df
