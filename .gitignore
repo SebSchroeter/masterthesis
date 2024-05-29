@@ -1,9 +1,4 @@
-*.csv
-*.xlsx
 __pycache__/
 other githubs/
-other githubs/powerindices/
-data/
-results/ 
-results_old/
-results_very_old/
+other githubs/powerindices/ 
+not used anymore/
